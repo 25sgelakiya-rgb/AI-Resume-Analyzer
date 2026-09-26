@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Resume Analysis Results</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #222;
+        }
+
+        header {
+            background: #182848;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 35px auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.07);
+        }
+
+        .score {
+            font-size: 55px;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .match {
+            text-align: center;
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        ul {
+            line-height: 1.8;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 12px 20px;
+            background: #182848;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 700px) {
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full {
+                grid-column: auto;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <h1>Resume Analysis Results</h1>
+
+    <p>{{ filename }}</p>
+
+</header>
+
+<div class="container">
+
+    <div class="grid">
+
+        <div class="card">
+
+            <h2>Resume Score</h2>
+
+            <div class="score">
+                {{ score }}/100
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Job Match</h2>
+
+            <div class="match">
+                {{ match_score }}%
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Detected Skills</h2>
+
+            {% if skills %}
+
+            <ul>
+
+                {% for skill in skills %}
+
+                <li>{{ skill }}</li>
+
+                {% endfor %}
+
+            </ul>
+
+            {% else %}
+
+            <p>No recognized skills found.</p>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Matched Keywords</h2>
+
+            {% if matched_keywords %}
+
+            <ul>
+
+                {% for keyword in matched_keywords %}
+
+                <li>{{ keyword }}</li>
+
+                {% endfor %}
+
+            </ul>
+
+            {% else %}
+
+            <p>No matching keywords found.</p>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Missing Keywords</h2>
+
+            {% if missing_keywords %}
+
+            <ul>
+
+                {% for keyword in missing_keywords %}
+
+                <li>{{ keyword }}</li>
+
+                {% endfor %}
+
+            </ul>
+
+            {% else %}
+
+            <p>No major missing keywords detected.</p>
+
+            {% endif %}
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Recommendations</h2>
+
+            <ul>
+
+                {% for item in recommendations %}
+
+                <li>{{ item }}</li>
+
+                {% endfor %}
+
+            </ul>
+
+        </div>
+
+
+        <div class="card full">
+
+            <h2>Analysis Summary</h2>
+
+            <p>
+                The application extracted text from your resume,
+                identified recognized skills, compared the resume
+                with the supplied job description, calculated
+                a basic resume score, and generated recommendations.
+            </p>
+
+            <a href="/">Analyze Another Resume</a>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

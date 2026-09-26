@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Resume Analyzer</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #222;
+        }
+
+        header {
+            background: #182848;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0 0 10px;
+        }
+
+        header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 850px;
+            margin: 40px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        textarea {
+            min-height: 180px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 25px;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            background: #182848;
+            color: white;
+            font-size: 17px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #eef3ff;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 20px;
+            }
+
+            header {
+                padding: 25px 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>AI Resume Analyzer</h1>
+    <p>Analyze your resume and compare it with a job description</p>
+</header>
+
+<div class="container">
+
+    <div class="card">
+
+        <form action="/analyze" method="POST" enctype="multipart/form-data">
+
+            <label>Upload Resume</label>
+
+            <input
+                type="file"
+                name="resume"
+                accept=".pdf,.docx"
+                required
+            >
+
+            <label>Job Description</label>
+
+            <textarea
+                name="job_description"
+                placeholder="Paste the job description here..."
+            ></textarea>
+
+            <button type="submit">
+                Analyze Resume
+            </button>
+
+        </form>
+
+        <div class="info">
+            <strong>Supported formats:</strong> PDF and DOCX
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>
