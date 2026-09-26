@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+git add app.pygit add app.pyfrom flask import Flask, render_template, request
 from pypdf import PdfReader
 from docx import Document
 import os
@@ -14,7 +14,6 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-# Skills used for resume analysis
 SKILLS = [
     "python", "java", "javascript", "html", "css",
     "react", "angular", "node.js", "flask", "django",
@@ -35,7 +34,8 @@ STOP_WORDS = {
     "you", "our", "their", "they", "job", "role", "work",
     "looking", "candidate", "experience", "years", "good",
     "skills", "skill", "using", "about", "into", "also",
-    "should", "would", "must", "required", "requirements"
+    "should", "would", "must", "required", "requirements",
+    "we", "our", "who", "what", "where", "when", "how"
 }
 
 
@@ -152,7 +152,6 @@ def calculate_score(text, skills):
 
     word_count = len(text.split())
 
-    # Resume length
     if word_count >= 300:
         score += 15
     elif word_count >= 150:
@@ -163,11 +162,10 @@ def calculate_score(text, skills):
     else:
         score += 5
         feedback.append(
-            "Your resume appears short. Add relevant projects, "
-            "experience, or achievements."
+            "Your resume appears short. Add relevant projects, experience, "
+            "or achievements."
         )
 
-    # Skills
     if len(skills) >= 8:
         score += 20
     elif len(skills) >= 4:
@@ -181,25 +179,16 @@ def calculate_score(text, skills):
             "Add more relevant skills that match your target job."
         )
 
-    # Education
     if any(word in text_lower for word in [
-        "education",
-        "bachelor",
-        "master",
-        "degree",
-        "university",
-        "college"
+        "education", "bachelor", "master", "degree",
+        "university", "college"
     ]):
         score += 15
     else:
         feedback.append("Add a clear Education section.")
 
-    # Experience
     if any(word in text_lower for word in [
-        "experience",
-        "internship",
-        "employment",
-        "worked"
+        "experience", "internship", "employment", "worked"
     ]):
         score += 15
     else:
@@ -207,7 +196,6 @@ def calculate_score(text, skills):
             "Add work experience or internship details if applicable."
         )
 
-    # Projects
     if "project" in text_lower or "projects" in text_lower:
         score += 15
     else:
@@ -215,7 +203,6 @@ def calculate_score(text, skills):
             "Add relevant projects and explain the technologies used."
         )
 
-    # Email
     if re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text):
         score += 10
     else:
@@ -223,7 +210,6 @@ def calculate_score(text, skills):
             "Add a professional email address."
         )
 
-    # Phone number
     digits_only = re.sub(r"\D", "", text)
 
     if re.search(r"\d{10}", digits_only):
@@ -234,6 +220,155 @@ def calculate_score(text, skills):
         )
 
     return min(score, 100), feedback
+
+
+def generate_intelligent_insights(
+    resume_text,
+    job_description,
+    skills,
+    matched_keywords,
+    missing_keywords
+):
+    """
+    Generates contextual resume insights locally.
+
+    This does not call an external AI model. It analyzes the
+    resume structure, skills, keywords and job requirements.
+    """
+
+    insights = []
+    text_lower = resume_text.lower()
+
+    # Resume content depth
+    word_count = len(resume_text.split())
+
+    if word_count < 200:
+        insights.append(
+            "Content depth is low. Add specific responsibilities, "
+            "projects, technologies and achievements."
+        )
+    elif word_count >= 300:
+        insights.append(
+            "The resume contains a reasonable amount of content. "
+            "Focus on relevance rather than adding unnecessary text."
+        )
+
+    # Technical skill analysis
+    technical_skills = [
+        "python", "java", "javascript", "html", "css",
+        "react", "angular", "node.js", "flask", "django",
+        "fastapi", "sql", "mysql", "postgresql", "mongodb",
+        "docker", "machine learning", "pandas", "numpy",
+        "scikit-learn", "tensorflow", "pytorch"
+    ]
+
+    technical_found = [
+        skill for skill in technical_skills
+        if skill in text_lower
+    ]
+
+    if technical_found:
+        insights.append(
+            "Technical profile detected: "
+            + ", ".join(technical_found[:8])
+            + "."
+        )
+    else:
+        insights.append(
+            "No major technical skills were detected. "
+            "Add relevant technologies if they are part of your experience."
+        )
+
+    # Project analysis
+    if "project" in text_lower or "projects" in text_lower:
+        project_words = [
+            "developed", "created", "built", "designed",
+            "implemented", "deployed"
+        ]
+
+        if any(word in text_lower for word in project_words):
+            insights.append(
+                "Your resume describes practical project work. "
+                "Strengthen it further with measurable outcomes."
+            )
+        else:
+            insights.append(
+                "A Projects section was detected. Describe what you built, "
+                "which technologies you used, and what result you achieved."
+            )
+    else:
+        insights.append(
+            "No Projects section was detected. Add relevant academic, "
+            "personal, or internship projects."
+        )
+
+    # Achievement analysis
+    if re.search(r"\b\d+%|\b\d+\+|\b\d+\s*(users|clients|projects|records)", text_lower):
+        insights.append(
+            "Measurable information was detected. Continue using numbers "
+            "to demonstrate the impact of your work."
+        )
+    else:
+        insights.append(
+            "Few measurable achievements were detected. Add numbers, "
+            "percentages, performance improvements, or project scale where possible."
+        )
+
+    # Job-specific analysis
+    if job_description.strip():
+
+        if missing_keywords:
+            insights.append(
+                "For the target role, review these missing terms and add "
+                "them only when they truthfully describe your abilities: "
+                + ", ".join(missing_keywords[:6])
+                + "."
+            )
+
+        if matched_keywords:
+            insights.append(
+                f"{len(matched_keywords)} job-related keywords were found "
+                "in your resume."
+            )
+
+        if len(matched_keywords) > len(missing_keywords):
+            insights.append(
+                "The resume has substantial keyword overlap with the "
+                "provided job description."
+            )
+        else:
+            insights.append(
+                "The resume has limited keyword overlap with the "
+                "provided job description. Tailor relevant sections "
+                "to the target role."
+            )
+
+    # ATS analysis
+    headings = [
+        "education",
+        "experience",
+        "skills",
+        "projects",
+        "summary"
+    ]
+
+    detected_headings = [
+        heading for heading in headings
+        if heading in text_lower
+    ]
+
+    if len(detected_headings) >= 4:
+        insights.append(
+            "Several standard resume sections were detected, which can "
+            "help recruiters and applicant-tracking systems navigate the resume."
+        )
+    else:
+        insights.append(
+            "Consider using standard headings such as Summary, Skills, "
+            "Experience, Education and Projects."
+        )
+
+    return insights
 
 
 def generate_recommendations(
@@ -247,7 +382,6 @@ def generate_recommendations(
 
     text_lower = resume_text.lower()
 
-    # Job description analysis
     if job_description.strip():
 
         if missing_keywords:
@@ -261,8 +395,8 @@ def generate_recommendations(
 
         if len(matched_keywords) >= 5:
             recommendations.append(
-                "Your resume already contains several keywords "
-                "related to the target job."
+                "Your resume already contains several keywords related "
+                "to the target job."
             )
 
         if len(missing_keywords) > len(matched_keywords):
@@ -272,35 +406,25 @@ def generate_recommendations(
                 "and add relevant evidence from your actual experience."
             )
 
-    # Projects
     if "project" not in text_lower:
         recommendations.append(
             "Add a Projects section with project names, technologies, "
             "your contribution, and measurable results where possible."
         )
 
-    # Experience
     if "experience" not in text_lower and "internship" not in text_lower:
         recommendations.append(
             "Add relevant internship, work, freelance, or practical experience."
         )
 
-    # Skills
     if len(skills) < 5:
         recommendations.append(
             "Add relevant technical and professional skills that you actually possess."
         )
 
-    # Action verbs
     action_verbs = [
-        "developed",
-        "created",
-        "built",
-        "designed",
-        "implemented",
-        "improved",
-        "managed",
-        "analyzed"
+        "developed", "created", "built", "designed",
+        "implemented", "improved", "managed", "analyzed"
     ]
 
     if not any(verb in text_lower for verb in action_verbs):
@@ -309,7 +433,6 @@ def generate_recommendations(
             "designed, analyzed, or improved when describing your work."
         )
 
-    # Measurable achievements
     if not re.search(
         r"\b\d+%|\b\d+\+|\b\d+\s*(users|projects|clients|records|hours)",
         text_lower
@@ -319,7 +442,6 @@ def generate_recommendations(
             "percentages, numbers, users, projects, or performance improvements."
         )
 
-    # ATS formatting
     recommendations.append(
         "Keep formatting simple, clear, and ATS-friendly with "
         "consistent headings and spacing."
@@ -387,9 +509,20 @@ def analyze():
         missing_keywords
     )
 
-    recommendations = score_feedback + recommendations
+    intelligent_insights = generate_intelligent_insights(
+        resume_text,
+        job_description,
+        skills,
+        matched_keywords,
+        missing_keywords
+    )
 
-    # Remove duplicate recommendations
+    recommendations = (
+        score_feedback
+        + recommendations
+        + intelligent_insights
+    )
+
     recommendations = list(
         dict.fromkeys(recommendations)
     )
@@ -397,7 +530,10 @@ def analyze():
     summary = (
         f"The analyzer detected {len(skills)} relevant skills "
         f"and matched {match_percentage}% of the provided "
-        f"job-description keywords."
+        f"job-description keywords. "
+        f"The local intelligent analysis also reviewed resume "
+        f"content depth, technical skills, projects, achievements "
+        f"and standard resume sections."
     )
 
     return render_template(
