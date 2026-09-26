@@ -9,25 +9,34 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
-# -----------------------------
-# Skills database
-# -----------------------------
+# Skills used for resume analysis
 SKILLS = [
-    "python", "java", "javascript", "html", "css", "react",
-    "angular", "node.js", "flask", "django", "fastapi",
-    "sql", "mysql", "postgresql", "mongodb",
-    "git", "github", "docker",
-    "machine learning", "deep learning",
-    "data science", "pandas", "numpy",
+    "python", "java", "javascript", "html", "css",
+    "react", "angular", "node.js", "flask", "django",
+    "fastapi", "sql", "mysql", "postgresql", "mongodb",
+    "git", "github", "docker", "machine learning",
+    "deep learning", "data science", "pandas", "numpy",
     "scikit-learn", "tensorflow", "pytorch",
     "nlp", "natural language processing",
     "rest api", "api", "aws", "azure",
     "communication", "leadership", "teamwork",
     "problem solving", "data analysis", "excel"
 ]
+
+
+STOP_WORDS = {
+    "the", "and", "for", "with", "that", "this", "from",
+    "have", "has", "are", "was", "were", "will", "your",
+    "you", "our", "their", "they", "job", "role", "work",
+    "looking", "candidate", "experience", "years", "good",
+    "skills", "skill", "using", "about", "into", "also",
+    "should", "would", "must", "required", "requirements"
+}
 
 
 def allowed_file(filename):
@@ -37,9 +46,6 @@ def allowed_file(filename):
     )
 
 
-# -----------------------------
-# Extract text from PDF
-# -----------------------------
 def extract_pdf_text(filepath):
     text = ""
 
@@ -54,202 +60,355 @@ def extract_pdf_text(filepath):
     return text
 
 
-# -----------------------------
-# Extract text from DOCX
-# -----------------------------
 def extract_docx_text(filepath):
     document = Document(filepath)
 
     paragraphs = []
 
     for paragraph in document.paragraphs:
-        paragraphs.append(paragraph.text)
+        if paragraph.text.strip():
+            paragraphs.append(paragraph.text)
 
     return "\n".join(paragraphs)
 
 
-# -----------------------------
-# Extract skills
-# -----------------------------
+def extract_text(filepath):
+    extension = filepath.rsplit(".", 1)[1].lower()
+
+    if extension == "pdf":
+        return extract_pdf_text(filepath)
+
+    if extension == "docx":
+        return extract_docx_text(filepath)
+
+    return ""
+
+
 def find_skills(text):
     text_lower = text.lower()
-
-    found = []
+    found_skills = []
 
     for skill in SKILLS:
         if skill.lower() in text_lower:
-            found.append(skill.title())
+            found_skills.append(skill.title())
 
-    return sorted(set(found))
+    return sorted(set(found_skills))
 
 
-# -----------------------------
-# Job description matching
-# -----------------------------
-def analyze_job_match(resume_text, job_description):
-    resume_lower = resume_text.lower()
-    job_lower = job_description.lower()
-
-    job_words = set(
-        re.findall(r"\b[a-zA-Z][a-zA-Z0-9+#.-]{2,}\b", job_lower)
+def extract_keywords(text):
+    words = re.findall(
+        r"\b[a-zA-Z][a-zA-Z+#.-]{2,}\b",
+        text.lower()
     )
 
-    stop_words = {
-        "the", "and", "for", "with", "that", "this",
-        "from", "your", "you", "are", "our", "will",
-        "have", "has", "job", "role", "work", "using",
-        "years", "year", "required", "skills"
-    }
+    keywords = []
 
-    important_words = {
-        word for word in job_words
-        if word not in stop_words
-    }
+    for word in words:
+        word = word.strip(".,;:()[]{}")
+
+        if word in STOP_WORDS:
+            continue
+
+        if len(word) < 3:
+            continue
+
+        if word not in keywords:
+            keywords.append(word)
+
+    return keywords
+
+
+def job_description_match(resume_text, job_description):
+    if not job_description.strip():
+        return 0, [], []
+
+    resume_lower = resume_text.lower()
+    job_keywords = extract_keywords(job_description)
 
     matched = []
     missing = []
 
-    for word in sorted(important_words):
-        if word in resume_lower:
-            matched.append(word)
+    for keyword in job_keywords:
+        if keyword in resume_lower:
+            matched.append(keyword)
         else:
-            missing.append(word)
+            missing.append(keyword)
 
-    if important_words:
-        match_percentage = round(
-            (len(matched) / len(important_words)) * 100
+    if not job_keywords:
+        percentage = 0
+    else:
+        percentage = round(
+            (len(matched) / len(job_keywords)) * 100
+        )
+
+    return percentage, sorted(matched), sorted(missing)
+
+
+def calculate_score(text, skills):
+    text_lower = text.lower()
+
+    score = 0
+    feedback = []
+
+    word_count = len(text.split())
+
+    # Resume length
+    if word_count >= 300:
+        score += 15
+    elif word_count >= 150:
+        score += 10
+        feedback.append(
+            "Consider adding more relevant details to strengthen your resume."
         )
     else:
-        match_percentage = 0
-
-    return matched[:30], missing[:30], match_percentage
-
-
-# -----------------------------
-# Generate recommendations
-# -----------------------------
-def recommendations(skills, missing_skills, match_score):
-    recommendations_list = []
-
-    if not skills:
-        recommendations_list.append(
-            "Add a clear technical skills section to your resume."
+        score += 5
+        feedback.append(
+            "Your resume appears short. Add relevant projects, "
+            "experience, or achievements."
         )
 
-    if match_score < 50:
-        recommendations_list.append(
-            "Customize your resume keywords according to the job description."
+    # Skills
+    if len(skills) >= 8:
+        score += 20
+    elif len(skills) >= 4:
+        score += 15
+        feedback.append(
+            "Consider adding more relevant technical and professional skills."
+        )
+    else:
+        score += 8
+        feedback.append(
+            "Add more relevant skills that match your target job."
         )
 
-    if match_score >= 50:
-        recommendations_list.append(
-            "Your resume contains several keywords from the job description."
+    # Education
+    if any(word in text_lower for word in [
+        "education",
+        "bachelor",
+        "master",
+        "degree",
+        "university",
+        "college"
+    ]):
+        score += 15
+    else:
+        feedback.append("Add a clear Education section.")
+
+    # Experience
+    if any(word in text_lower for word in [
+        "experience",
+        "internship",
+        "employment",
+        "worked"
+    ]):
+        score += 15
+    else:
+        feedback.append(
+            "Add work experience or internship details if applicable."
         )
 
-    if not any("project" in item.lower() for item in missing_skills):
-        recommendations_list.append(
-            "Include relevant projects with technologies and measurable results."
+    # Projects
+    if "project" in text_lower or "projects" in text_lower:
+        score += 15
+    else:
+        feedback.append(
+            "Add relevant projects and explain the technologies used."
         )
 
-    recommendations_list.append(
-        "Use action verbs and measurable achievements where possible."
+    # Email
+    if re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text):
+        score += 10
+    else:
+        feedback.append(
+            "Add a professional email address."
+        )
+
+    # Phone number
+    digits_only = re.sub(r"\D", "", text)
+
+    if re.search(r"\d{10}", digits_only):
+        score += 5
+    else:
+        feedback.append(
+            "Consider adding a professional phone number."
+        )
+
+    return min(score, 100), feedback
+
+
+def generate_recommendations(
+    resume_text,
+    job_description,
+    skills,
+    matched_keywords,
+    missing_keywords
+):
+    recommendations = []
+
+    text_lower = resume_text.lower()
+
+    # Job description analysis
+    if job_description.strip():
+
+        if missing_keywords:
+            important_missing = missing_keywords[:8]
+
+            recommendations.append(
+                "Consider naturally including relevant job keywords such as: "
+                + ", ".join(important_missing)
+                + ". Only include skills you genuinely have."
+            )
+
+        if len(matched_keywords) >= 5:
+            recommendations.append(
+                "Your resume already contains several keywords "
+                "related to the target job."
+            )
+
+        if len(missing_keywords) > len(matched_keywords):
+            recommendations.append(
+                "The job description contains many terms that are not "
+                "currently visible in your resume. Review the requirements "
+                "and add relevant evidence from your actual experience."
+            )
+
+    # Projects
+    if "project" not in text_lower:
+        recommendations.append(
+            "Add a Projects section with project names, technologies, "
+            "your contribution, and measurable results where possible."
+        )
+
+    # Experience
+    if "experience" not in text_lower and "internship" not in text_lower:
+        recommendations.append(
+            "Add relevant internship, work, freelance, or practical experience."
+        )
+
+    # Skills
+    if len(skills) < 5:
+        recommendations.append(
+            "Add relevant technical and professional skills that you actually possess."
+        )
+
+    # Action verbs
+    action_verbs = [
+        "developed",
+        "created",
+        "built",
+        "designed",
+        "implemented",
+        "improved",
+        "managed",
+        "analyzed"
+    ]
+
+    if not any(verb in text_lower for verb in action_verbs):
+        recommendations.append(
+            "Use strong action verbs such as developed, implemented, "
+            "designed, analyzed, or improved when describing your work."
+        )
+
+    # Measurable achievements
+    if not re.search(
+        r"\b\d+%|\b\d+\+|\b\d+\s*(users|projects|clients|records|hours)",
+        text_lower
+    ):
+        recommendations.append(
+            "Where possible, add measurable achievements such as "
+            "percentages, numbers, users, projects, or performance improvements."
+        )
+
+    # ATS formatting
+    recommendations.append(
+        "Keep formatting simple, clear, and ATS-friendly with "
+        "consistent headings and spacing."
     )
 
-    recommendations_list.append(
-        "Keep formatting simple and easy for applicant tracking systems to read."
-    )
-
-    return recommendations_list
+    return recommendations
 
 
-# -----------------------------
-# Home page
-# -----------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# -----------------------------
-# Analyze resume
-# -----------------------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
 
     if "resume" not in request.files:
-        return "No resume uploaded.", 400
+        return "No resume file uploaded."
 
     file = request.files["resume"]
 
     if file.filename == "":
-        return "Please select a resume.", 400
+        return "Please select a resume file."
 
     if not allowed_file(file.filename):
-        return "Only PDF and DOCX files are allowed.", 400
+        return "Only PDF and DOCX files are supported."
 
-    filename = file.filename.replace(" ", "_")
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    filename = file.filename
+    filepath = os.path.join(
+        app.config["UPLOAD_FOLDER"],
+        filename
+    )
 
     file.save(filepath)
 
-    extension = filename.rsplit(".", 1)[1].lower()
+    resume_text = extract_text(filepath)
 
-    try:
-        if extension == "pdf":
-            resume_text = extract_pdf_text(filepath)
-        else:
-            resume_text = extract_docx_text(filepath)
+    if not resume_text.strip():
+        return "Could not extract text from the resume."
 
-    except Exception as error:
-        return f"Could not read the resume: {error}", 500
-
-    job_description = request.form.get("job_description", "")
+    job_description = request.form.get(
+        "job_description",
+        ""
+    )
 
     skills = find_skills(resume_text)
 
-    matched_keywords, missing_keywords, match_score = analyze_job_match(
-        resume_text,
-        job_description
+    match_percentage, matched_keywords, missing_keywords = (
+        job_description_match(
+            resume_text,
+            job_description
+        )
     )
 
-    # Basic resume score
-    score = 0
+    score, score_feedback = calculate_score(
+        resume_text,
+        skills
+    )
 
-    if len(resume_text) > 500:
-        score += 25
-
-    if skills:
-        score += 25
-
-    if "education" in resume_text.lower():
-        score += 10
-
-    if "experience" in resume_text.lower():
-        score += 15
-
-    if "project" in resume_text.lower():
-        score += 15
-
-    if "contact" in resume_text.lower() or "email" in resume_text.lower():
-        score += 10
-
-    score = min(score, 100)
-
-    recommendations_list = recommendations(
+    recommendations = generate_recommendations(
+        resume_text,
+        job_description,
         skills,
-        missing_keywords,
-        match_score
+        matched_keywords,
+        missing_keywords
+    )
+
+    recommendations = score_feedback + recommendations
+
+    # Remove duplicate recommendations
+    recommendations = list(
+        dict.fromkeys(recommendations)
+    )
+
+    summary = (
+        f"The analyzer detected {len(skills)} relevant skills "
+        f"and matched {match_percentage}% of the provided "
+        f"job-description keywords."
     )
 
     return render_template(
         "result.html",
-        filename=filename,
         score=score,
+        match_percentage=match_percentage,
         skills=skills,
         matched_keywords=matched_keywords,
         missing_keywords=missing_keywords,
-        match_score=match_score,
-        recommendations=recommendations_list
+        recommendations=recommendations,
+        summary=summary
     )
 
 
