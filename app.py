@@ -1,4 +1,4 @@
-git add app.pygit add app.pyfrom flask import Flask, render_template, request
+from flask import Flask, render_template, request
 from pypdf import PdfReader
 from docx import Document
 import os
